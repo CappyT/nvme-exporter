@@ -1,4 +1,4 @@
-FROM fedora:41
+FROM fedora:44
 
 RUN dnf update -y \
     && dnf install -y nvme-cli \
