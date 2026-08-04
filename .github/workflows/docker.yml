@@ -1,0 +1,52 @@
+---
+name: docker
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Setup Go
+        uses: actions/setup-go@v5.3.0
+        with:
+          go-version-file: go.mod
+      - name: Build binary
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/prometheus/common/version.Version=${VERSION} -X github.com/prometheus/common/version.Revision=${GITHUB_SHA} -X github.com/prometheus/common/version.Branch=${GITHUB_REF_NAME} -X github.com/prometheus/common/version.BuildUser=github-actions -X github.com/prometheus/common/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o nvme_exporter ./cmd
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5.6.1
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/nvme-exporter
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+      - name: Login to ghcr
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6.10.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
