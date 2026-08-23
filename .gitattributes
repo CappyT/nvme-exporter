@@ -1,0 +1,16 @@
+# Fork-owned CI files: never take upstream's version when merging
+# E4-Computer-Engineering/nvme-exporter into this fork. These files diverge
+# on purpose (floating action majors, multi-arch docker publishing) and
+# Renovate keeps them current, so upstream's edits are deliberately dropped.
+# Dockerfile and Makefile are NOT listed: their upstream changes are
+# functional, so conflicts there must surface and fail the sync loudly.
+#
+# The "ours" merge driver is NOT builtin - it only works where
+# `git config merge.ours.driver true` has been set. The upstream-sync workflow
+# sets it; if you run the merge locally, set it in your clone too or these
+# attributes are inert and you get normal conflicts.
+.github/workflows/build.yml merge=ours
+.github/workflows/docker.yml merge=ours
+.github/workflows/release.yml merge=ours
+.github/workflows/upstream-sync.yaml merge=ours
+renovate.json merge=ours

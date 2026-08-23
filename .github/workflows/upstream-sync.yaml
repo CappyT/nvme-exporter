@@ -29,10 +29,16 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Configure git identity
+      - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # "ours" is not a builtin merge driver (only text/binary/union are):
+          # without this config the merge=ours entries in .gitattributes are
+          # inert. `true` exits 0 and leaves %A untouched, i.e. keeps our side.
+          # Upstream improvements to those CI files are deliberately dropped -
+          # the fork owns them and renovate keeps them fresh.
+          git config merge.ours.driver true
 
       - name: Fetch upstream
         run: |
