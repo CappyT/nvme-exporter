@@ -73,7 +73,7 @@ func flattenNewStructure(devices []gjson.Result) []gjson.Result {
 					generic := namespace.Get("Generic").String()
 
 					// Construct a flat JSON object compatible with old structure
-					flatJSON := map[string]interface{}{
+					flatJSON := map[string]any{
 						"DevicePath":   "/dev/" + namespaceName,
 						"GenericPath":  generic,
 						"Firmware":     firmware,

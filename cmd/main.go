@@ -284,6 +284,7 @@ func main() {
 	// Define flags following Prometheus node_exporter conventions
 	listenAddress := flag.String("web.listen-address", ":9998", "Address on which to expose metrics and web interface")
 	metricsPath := flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics")
+
 	flag.Parse()
 
 	// Ensure metrics path starts with /

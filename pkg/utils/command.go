@@ -14,7 +14,8 @@ import (
 
 // getStringCmd produces a single string from the cmd, args... format.
 func getStringCmd(cmd string, args ...string) string {
-	cmdSlice := []string{cmd}
+	cmdSlice := make([]string, 0, 1+len(args))
+	cmdSlice = append(cmdSlice, cmd)
 	cmdSlice = append(cmdSlice, args...)
 
 	return strings.Join(cmdSlice, " ")
@@ -73,7 +74,7 @@ func CheckRoot() error {
 }
 
 // MapToJSONString converts a map to a JSON string.
-func MapToJSONString(data map[string]interface{}) string {
+func MapToJSONString(data map[string]any) string {
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {
 		return "{}"
