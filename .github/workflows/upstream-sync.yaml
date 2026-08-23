@@ -1,0 +1,73 @@
+---
+name: upstream-sync
+
+on:
+  schedule:
+    # every monday at 04:17 UTC, before the renovate run
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://github.com/E4-Computer-Engineering/nvme-exporter.git
+  UPSTREAM_BRANCH: main
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "${UPSTREAM_URL}" 2>/dev/null \
+            || git remote set-url upstream "${UPSTREAM_URL}"
+          git fetch --no-tags upstream \
+            "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
+
+      - name: Merge upstream into main
+        id: merge
+        run: |
+          if git merge-base --is-ancestor "upstream/${UPSTREAM_BRANCH}" HEAD; then
+            echo "main already contains upstream/${UPSTREAM_BRANCH}, nothing to do"
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if ! git merge --no-ff --no-edit \
+              -m "chore: merge upstream ${UPSTREAM_BRANCH}" \
+              "upstream/${UPSTREAM_BRANCH}"; then
+            git diff --name-only --diff-filter=U | sed 's/^/conflicting file: /'
+            echo "::error title=upstream merge conflict::cannot merge upstream/${UPSTREAM_BRANCH} into main automatically, resolve it by hand"
+            git merge --abort || true
+            exit 1
+          fi
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Push merge to main
+        if: steps.merge.outputs.changed == 'true'
+        run: git push origin HEAD:main
+
+      # pushes made with GITHUB_TOKEN do not trigger `push` workflows, so the
+      # build has to be dispatched explicitly (workflow_dispatch is exempt from
+      # the recursion guard)
+      - name: Trigger build workflow
+        if: steps.merge.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build.yml --ref main
