@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v7
       - name: Setup Go
-        uses: actions/setup-go@v5.3.0
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Build binary
@@ -30,7 +30,7 @@ jobs:
             -o nvme_exporter ./cmd
       - name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v5.6.1
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/nvme-exporter
           tags: |
@@ -38,13 +38,13 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
       - name: Login to ghcr
-        uses: docker/login-action@v3.3.0
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        uses: docker/build-push-action@v6.10.0
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
