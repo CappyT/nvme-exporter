@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   actions: write
+  issues: write
 
 concurrency:
   group: upstream-sync
@@ -58,12 +59,59 @@ jobs:
           if ! git merge --no-ff --no-edit \
               -m "chore: merge upstream ${UPSTREAM_BRANCH}" \
               "upstream/${UPSTREAM_BRANCH}"; then
-            git diff --name-only --diff-filter=U | sed 's/^/conflicting file: /'
+            # capture the unmerged paths before aborting - the abort wipes the
+            # index state they are read from
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            if [ -n "${conflicts}" ]; then
+              echo "${conflicts}" | sed 's/^/conflicting file: /'
+              delimiter="EOF_${RANDOM}${RANDOM}"
+              {
+                echo "conflict=true"
+                echo "conflicts<<${delimiter}"
+                echo "${conflicts}"
+                echo "${delimiter}"
+              } >> "${GITHUB_OUTPUT}"
+            fi
             echo "::error title=upstream merge conflict::cannot merge upstream/${UPSTREAM_BRANCH} into main automatically, resolve it by hand"
             git merge --abort || true
             exit 1
           fi
           echo "changed=true" >> "${GITHUB_OUTPUT}"
+
+      # a conflicted sync needs a human, and a red run in the actions tab is easy
+      # to miss on a weekly cron. Mirror it into an issue, reusing the open one
+      # if a previous run already filed it instead of piling up duplicates.
+      - name: Report conflict as an issue
+        if: failure() && steps.merge.outputs.conflict == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_TITLE: upstream sync conflict
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$(
+            printf 'Automatic merge of `upstream/%s` into `main` hit conflicts and was aborted.\n\n' "${UPSTREAM_BRANCH}"
+            printf 'Conflicting files:\n\n'
+            printf '%s\n' "${CONFLICTS}" | sed 's/^/- `/;s/$/`/'
+            printf '\nFailed run: %s\n\n' "${RUN_URL}"
+            printf 'Resolve it locally:\n\n'
+            printf '```sh\n'
+            printf 'git remote add upstream %s\n' "${UPSTREAM_URL}"
+            printf 'git fetch upstream %s\n' "${UPSTREAM_BRANCH}"
+            printf 'git config merge.ours.driver true  # makes .gitattributes merge=ours effective\n'
+            printf 'git merge upstream/%s\n' "${UPSTREAM_BRANCH}"
+            printf '```\n'
+          )"
+          number="$(gh issue list --state open --limit 100 --json number,title \
+            --jq "map(select(.title == \"${ISSUE_TITLE}\")) | first | .number // empty")"
+          if [ -n "${number}" ]; then
+            echo "conflict already tracked, commenting on issue #${number}"
+            gh issue comment "${number}" --body "${body}"
+          else
+            echo "no open conflict issue, creating one"
+            gh issue create --title "${ISSUE_TITLE}" --body "${body}"
+          fi
 
       - name: Push merge to main
         if: steps.merge.outputs.changed == 'true'
