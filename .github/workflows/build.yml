@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -38,13 +38,13 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           # renovate: depName=golangci/golangci-lint datasource=github-releases
-          version: v2.12.2
+          version: v2.15.0
           args: --timeout=3m0s
       - name: Build with Goreleaser
         uses: goreleaser/goreleaser-action@v7
         with:
           # renovate: depName=goreleaser/goreleaser datasource=github-releases
-          version: v2.7.0
+          version: v2.18.3
           args: release --snapshot --skip=publish --clean
         env:
           PRIVATE_ACCESS_TOKEN: placeholder
