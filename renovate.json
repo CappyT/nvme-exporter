@@ -29,5 +29,8 @@
       ],
       "automerge": false
     }
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
   ]
 }
