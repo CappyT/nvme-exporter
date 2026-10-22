@@ -1,4 +1,4 @@
-FROM fedora:44
+FROM fedora:46
 
 # Set by BuildKit from the target platform. Must stay without a default value:
 # a default shadows the platform value and every arch would get the same binary.
